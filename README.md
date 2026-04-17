@@ -4,14 +4,14 @@ Local ingest utilities for NAEI datasets.
 
 ## NAEI 2024 PV (PivotTableViewer) local workflow
 
-The 2024 PV ingest script lives at `scripts/load_naei_data.py` and only reads these workbook sheets:
+The 2024 PV ingest script lives at `scripts/load_naei_data.py` and only reads these visible pivot sheets:
 
-- `dbLinkAQ`
-- `dbLinkHM`
-- `dbLinkPM`
-- `dbLinkPOP`
+- `AirPollutants` → `NAEI2024pv_AQ.csv`
+- `HeavyMetals` → `NAEI2024pv_HM.csv`
+- `ParticulateMatter` → `NAEI2024pv_PM.csv`
+- `POPs&PAHs` → `NAEI2024pv_POP.csv`
 
-Presentation/report tabs are ignored.
+All other sheets (hidden backing data, query tables, report tabs) are ignored.
 
 ### 1) Install dependencies
 
@@ -47,10 +47,10 @@ python3 scripts/load_naei_data.py extract-pv-xlsx \
 
 Output files:
 
-- `NAEI2024pv_AQ_dblinkaq.csv`
-- `NAEI2024pv_HM_dblinkhm.csv`
-- `NAEI2024pv_PM_dblinkpm.csv`
-- `NAEI2024pv_POP_dblinkpop.csv`
+- `NAEI2024pv_AQ.csv`
+- `NAEI2024pv_HM.csv`
+- `NAEI2024pv_PM.csv`
+- `NAEI2024pv_POP.csv`
 
 Normalized columns:
 

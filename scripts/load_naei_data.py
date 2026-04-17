@@ -45,15 +45,13 @@ VISIBLE_PV_FIXED_HEADERS = ("NFRCode", "SourceName", "ActivityName", "Emission U
 class VisiblePVSheetSpec:
     subtype: str
     pollutant_header: str
-    csv_suffix: str
 
 
 TARGET_PV_SHEETS: Dict[str, VisiblePVSheetSpec] = {
-    # Keep legacy file suffixes so loader upserts to existing dataset_file names.
-    "AirPollutants": VisiblePVSheetSpec(subtype="AQ", pollutant_header="Pollutant"),
-    "HeavyMetals": VisiblePVSheetSpec(subtype="HM", pollutant_header="Pollutant"),
-    "ParticulateMatter": VisiblePVSheetSpec(subtype="PM", pollutant_header="Pollutant"),
-    "POPs&PAHs": VisiblePVSheetSpec(subtype="POP", pollutant_header="Pollutant"),
+    "AirPollutants":     VisiblePVSheetSpec(subtype="AQ",  pollutant_header="Pollutant"),
+    "HeavyMetals":       VisiblePVSheetSpec(subtype="HM",  pollutant_header="Pollutant"),
+    "ParticulateMatter": VisiblePVSheetSpec(subtype="PM",  pollutant_header="Particle Size"),
+    "POPs&PAHs":         VisiblePVSheetSpec(subtype="POP", pollutant_header="Pollutant"),
 }
 
 NORMALIZED_COLUMNS: List[str] = [
@@ -433,7 +431,10 @@ def gather_csv_paths(path: Path) -> List[Path]:
     if path.is_file():
         return [path]
     if path.is_dir():
-        return sorted(item for item in path.rglob("*.csv") if item.is_file())
+        return sorted(
+            item for item in path.rglob("*.csv")
+            if item.is_file() and re.match(r"naei\d{4}pv_[A-Z]+\.csv$", item.name, re.IGNORECASE)
+        )
     raise FileNotFoundError(path)
 
 
@@ -499,7 +500,7 @@ def extract_pv_xlsx(
             header_index, year_columns = validate_visible_sheet_headers(sheet_name, sheet_spec, header_row)
             extracted_at = extract_visible_sheet_timestamp(worksheet, fallback_timestamp)
 
-            csv_name = f"{normalized_prefix}_{sheet_spec.subtype}_{sheet_spec.csv_suffix}.csv"
+            csv_name = f"{normalized_prefix}_{sheet_spec.subtype}.csv"
             csv_path = output_dir / csv_name
             sheet_summary = ExtractSheetSummary(sheet_name=sheet_name, csv_path=csv_path)
 

@@ -1,11 +1,23 @@
-. .venv/bin/activate
+
 
 cd "/Users/mikehinford/Dropbox/Projects/CIC Website/CIC Data Explorer/CIC Data Explorer Mark 2/CIC-test-data-explorer-mk2-ingest"
+
+. .venv/bin/activate
+
+
+Use both commands in sequence — run them from the repo directory with the venv activated:
+
+Step 1 — extract from Excel:
+
 
 python3 scripts/load_naei_data.py extract-pv-xlsx \
   --xlsx "/Users/mikehinford/Dropbox/Apps/github-data-explorer-mk2/2026/PivotTableViewer_naei24_AQ_2026_02_26.xlsx" \
   --output-dir "extracted-pv" \
   --dataset-prefix NAEI2024pv
+  
+This overwrites the four clean CSVs in extracted-pv/ with a fresh extract from the workbook.
+
+Step 2 — load into DB:
 
 
 python scripts/load_naei_data_batched.py \
@@ -15,4 +27,5 @@ python scripts/load_naei_data_batched.py \
   --years-per-commit 1 \
   --work-mem 256MB
   
-
+  
+This loads those CSVs into Postgres, upserting against the renamed dataset_file keys we just migrated.
