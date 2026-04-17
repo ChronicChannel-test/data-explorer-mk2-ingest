@@ -1,0 +1,18 @@
+. .venv/bin/activate
+
+cd "/Users/mikehinford/Dropbox/Projects/CIC Website/CIC Data Explorer/CIC Data Explorer Mark 2/CIC-test-data-explorer-mk2-ingest"
+
+python3 scripts/load_naei_data.py extract-pv-xlsx \
+  --xlsx "/Users/mikehinford/Dropbox/Apps/github-data-explorer-mk2/2026/PivotTableViewer_naei24_AQ_2026_02_26.xlsx" \
+  --output-dir "extracted-pv" \
+  --dataset-prefix NAEI2024pv
+
+
+python scripts/load_naei_data_batched.py \
+  --path "/Users/mikehinford/Dropbox/Projects/CIC Website/CIC Data Explorer/CIC Data Explorer Mark 2/CIC-test-data-explorer-mk2-ingest/extracted-pv" \
+  --dataset-prefix NAEI2024pv \
+  --source-url "PivotTableViewer_naei24_AQ_2026_02_26.xlsx" \
+  --years-per-commit 1 \
+  --work-mem 256MB
+  
+

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Local extractor/loader for NAEI 2024 PV dbLink workbook data.
+"""Local extractor/loader for NAEI PV PivotTableViewer workbook data.
 
 Commands:
-- extract-pv-xlsx: read dbLinkAQ/HM/PM/POP sheets and write normalized CSVs
+- extract-pv-xlsx: read visible pivot sheets and write normalized CSVs
 - load-pv: load normalized CSVs into Supabase/Postgres
 - run-pv-ingest: run extract + load in one step
 """
@@ -37,65 +37,26 @@ except ImportError:  # pragma: no cover - exercised in environments without depe
 PREFIX_PATTERN = re.compile(r"^naei(\d{4})(ds|pv)$", re.IGNORECASE)
 DEFAULT_OUTPUT_DIR = Path.home() / "naei-ingest-output"
 
-TARGET_PV_SHEETS: Dict[str, str] = {
-    "dbLinkAQ": "AQ",
-    "dbLinkHM": "HM",
-    "dbLinkPM": "PM",
-    "dbLinkPOP": "POP",
-}
+VISIBLE_PV_HEADER_ROW = 14
+VISIBLE_PV_FIXED_HEADERS = ("NFRCode", "SourceName", "ActivityName", "Emission Unit")
 
-EXPECTED_HEADERS: Dict[str, List[str]] = {
-    "dbLinkAQ": [
-        "time-stamp",
-        "TerritoryName",
-        "Pollutant",
-        "Year",
-        "Emission Unit",
-        "SourceName",
-        "ActivityName",
-        "Emission",
-        "NFRCode",
-    ],
-    "dbLinkHM": [
-        "time-stamp",
-        "TerritoryName",
-        "Pollutant",
-        "Year",
-        "Emission Unit",
-        "SourceName",
-        "ActivityName",
-        "Emission",
-        "NFRCode",
-    ],
-    "dbLinkPM": [
-        "time-stamp",
-        "TerritoryName",
-        "Particle Size",
-        "Year",
-        "Emission Unit",
-        "SourceName",
-        "ActivityName",
-        "Emission",
-        "NFRCode",
-    ],
-    "dbLinkPOP": [
-        "time-stamp",
-        "TerritoryName",
-        "Pollutant",
-        "Year",
-        "Emission Unit",
-        "SourceName",
-        "ActivityName",
-        "Emission",
-        "NFRCode",
-    ],
+
+@dataclass(frozen=True)
+class VisiblePVSheetSpec:
+    subtype: str
+    pollutant_header: str
+    csv_suffix: str
+
+
+TARGET_PV_SHEETS: Dict[str, VisiblePVSheetSpec] = {
+    # Keep legacy file suffixes so loader upserts to existing dataset_file names.
+    "AirPollutants": VisiblePVSheetSpec(subtype="AQ", pollutant_header="Pollutant"),
+    "HeavyMetals": VisiblePVSheetSpec(subtype="HM", pollutant_header="Pollutant"),
+    "ParticulateMatter": VisiblePVSheetSpec(subtype="PM", pollutant_header="Pollutant"),
+    "POPs&PAHs": VisiblePVSheetSpec(subtype="POP", pollutant_header="Pollutant"),
 }
 
 NORMALIZED_COLUMNS: List[str] = [
-    "extracted_at",
-    "source_sheet",
-    "dataset_prefix",
-    "territory_name",
     "pollutant",
     "reporting_year",
     "emission_unit",
@@ -124,7 +85,6 @@ class NormalizedPVRow:
     extracted_at: str
     source_sheet: str
     dataset_prefix: str
-    territory_name: str
     pollutant: str
     reporting_year: int
     emission_unit: Optional[str]
@@ -133,10 +93,8 @@ class NormalizedPVRow:
     emission_value: float
     nfr_code: str
 
-    def series_lookup_key(self) -> Tuple[str, str, str, str, str]:
-        # Territory is part of series identity for 2024 PV.
+    def series_lookup_key(self) -> Tuple[str, str, str, str]:
         return (
-            self.territory_name.lower(),
             self.pollutant.lower(),
             self.nfr_code.lower(),
             self.source_name.lower(),
@@ -211,6 +169,27 @@ def normalize_dataset_prefix(value: str) -> str:
     return f"NAEI{year}{suffix.lower()}"
 
 
+def infer_dataset_prefix_from_csv_name(file_name: str) -> Optional[str]:
+    stem = Path(file_name).stem
+    if "_" not in stem:
+        return None
+    prefix = stem.split("_", 1)[0].strip()
+    if not prefix:
+        return None
+    try:
+        return require_pv_dataset_prefix(prefix)
+    except ValueError:
+        return None
+
+
+def infer_source_sheet_from_csv_name(file_name: str) -> Optional[str]:
+    stem = Path(file_name).stem
+    parts = [part.strip() for part in stem.split("_") if part.strip()]
+    if len(parts) >= 3:
+        return parts[2]
+    return None
+
+
 def require_pv_dataset_prefix(value: str) -> str:
     normalized = normalize_dataset_prefix(value)
     if not PREFIX_PATTERN.match(normalized) or not normalized.lower().endswith("pv"):
@@ -263,6 +242,13 @@ def parse_year(value: Any) -> Optional[int]:
         year = int(text)
     if year < 1900 or year > 2100:
         return None
+    return year
+
+
+def parse_year_arg(value: str) -> int:
+    year = parse_year(value)
+    if year is None:
+        raise argparse.ArgumentTypeError("Year must be an integer between 1900 and 2100")
     return year
 
 
@@ -324,74 +310,53 @@ def parse_excel_timestamp(value: Any) -> Optional[str]:
         return text
 
 
-def validate_sheet_headers(sheet_name: str, headers: Sequence[Any]) -> None:
-    expected = EXPECTED_HEADERS[sheet_name]
+def validate_visible_sheet_headers(
+    sheet_name: str,
+    sheet_spec: VisiblePVSheetSpec,
+    headers: Sequence[Any],
+) -> Tuple[Dict[str, int], List[Tuple[int, int]]]:
     normalized = [str(value).strip() if value is not None else "" for value in headers]
-    if normalized[: len(expected)] != expected:
-        found_preview = ", ".join(repr(v) for v in normalized[: len(expected)])
-        expected_preview = ", ".join(repr(v) for v in expected)
+    header_index = {name: idx for idx, name in enumerate(normalized) if name}
+
+    required = (sheet_spec.pollutant_header,) + VISIBLE_PV_FIXED_HEADERS
+    missing = [name for name in required if name not in header_index]
+    if missing:
         raise ValueError(
-            f"Unexpected headers in {sheet_name}. "
-            f"Expected [{expected_preview}] but found [{found_preview}]"
+            f"Unexpected visible-sheet headers in {sheet_name}. Missing required columns: {', '.join(missing)}"
         )
 
+    year_columns: List[Tuple[int, int]] = []
+    for idx, value in enumerate(headers):
+        year = parse_year(value)
+        if year is not None:
+            year_columns.append((idx, year))
 
-def normalize_db_link_row(
-    *,
-    source_sheet: str,
-    dataset_prefix: str,
-    raw_row: Mapping[str, Any],
-    fallback_extracted_at: str,
-) -> Tuple[Optional[NormalizedPVRow], Optional[str]]:
-    pollutant_col = "Particle Size" if source_sheet == "dbLinkPM" else "Pollutant"
+    if not year_columns:
+        raise ValueError(f"{sheet_name} has no parseable year columns in header row {VISIBLE_PV_HEADER_ROW}")
 
-    territory_name = clean_text(raw_row.get("TerritoryName"))
-    pollutant = clean_text(raw_row.get(pollutant_col))
-    reporting_year = parse_year(raw_row.get("Year"))
-    source_name = clean_text(raw_row.get("SourceName"))
-    activity_name = clean_text(raw_row.get("ActivityName"))
-    nfr_code = clean_text(raw_row.get("NFRCode"))
-    emission_value = parse_float(raw_row.get("Emission"))
-    emission_unit = clean_text(raw_row.get("Emission Unit"))
+    return header_index, year_columns
 
-    row_timestamp = parse_excel_timestamp(raw_row.get("time-stamp"))
-    extracted_at = row_timestamp or fallback_extracted_at
 
-    if not pollutant or reporting_year is None:
-        return None, "missing_pollutant_or_year"
-    if territory_name is None:
-        return None, "missing_territory"
-    if source_name is None:
-        return None, "missing_source"
-    if activity_name is None:
-        return None, "missing_activity"
-    if nfr_code is None:
-        return None, "missing_nfr_code"
-    if emission_value is None:
-        return None, "missing_or_invalid_emission"
+def extract_visible_sheet_timestamp(worksheet: Any, fallback_extracted_at: str) -> str:
+    for values in worksheet.iter_rows(min_row=1, max_row=VISIBLE_PV_HEADER_ROW - 1, values_only=True):
+        label = clean_text(values[1] if len(values) > 1 else None)
+        if label and label.lower() == "time-stamp":
+            raw = clean_text(values[2] if len(values) > 2 else None)
+            if raw is None or raw == "(All)":
+                return fallback_extracted_at
+            return parse_excel_timestamp(raw) or fallback_extracted_at
+    return fallback_extracted_at
 
-    normalized = NormalizedPVRow(
-        extracted_at=extracted_at,
-        source_sheet=source_sheet,
-        dataset_prefix=dataset_prefix,
-        territory_name=territory_name,
-        pollutant=pollutant,
-        reporting_year=reporting_year,
-        emission_unit=emission_unit,
-        source_name=source_name,
-        activity_name=activity_name,
-        emission_value=emission_value,
-        nfr_code=nfr_code,
-    )
-    return normalized, None
+
+def is_grand_total_row(*values: Optional[str]) -> bool:
+    for value in values:
+        if value is not None and value.strip().lower() == "grand total":
+            return True
+    return False
 
 
 def normalized_row_to_csv(row: NormalizedPVRow) -> Dict[str, str]:
     return {
-        "extracted_at": row.extracted_at,
-        "source_sheet": row.source_sheet,
-        "dataset_prefix": row.dataset_prefix,
-        "territory_name": row.territory_name,
         "pollutant": row.pollutant,
         "reporting_year": str(row.reporting_year),
         "emission_unit": row.emission_unit or "",
@@ -405,31 +370,40 @@ def normalized_row_to_csv(row: NormalizedPVRow) -> Dict[str, str]:
 def parse_normalized_csv_row(
     raw_row: Mapping[str, str],
     dataset_prefix_override: Optional[str],
+    dataset_prefix_fallback: Optional[str],
+    source_sheet_fallback: Optional[str],
+    extracted_at_fallback: Optional[str],
+    force_reporting_year_override: Optional[int] = None,
 ) -> Tuple[Optional[NormalizedPVRow], Optional[str]]:
     for col in NORMALIZED_COLUMNS:
         if col not in raw_row:
             return None, f"missing_column_{col}"
 
-    dataset_prefix = require_pv_dataset_prefix(dataset_prefix_override) if dataset_prefix_override else clean_text(raw_row.get("dataset_prefix"))
+    dataset_prefix = (
+        require_pv_dataset_prefix(dataset_prefix_override)
+        if dataset_prefix_override
+        else clean_text(raw_row.get("dataset_prefix")) or dataset_prefix_fallback
+    )
     if not dataset_prefix:
         return None, "missing_dataset_prefix"
     if not PREFIX_PATTERN.match(dataset_prefix) or not dataset_prefix.lower().endswith("pv"):
         return None, "invalid_dataset_prefix"
 
-    territory_name = clean_text(raw_row.get("territory_name"))
     pollutant = clean_text(raw_row.get("pollutant"))
     source_name = clean_text(raw_row.get("source_name"))
     activity_name = clean_text(raw_row.get("activity_name"))
     nfr_code = clean_text(raw_row.get("nfr_code"))
-    reporting_year = parse_year(raw_row.get("reporting_year"))
+    reporting_year = (
+        force_reporting_year_override
+        if force_reporting_year_override is not None
+        else parse_year(raw_row.get("reporting_year"))
+    )
     emission_value = parse_float(raw_row.get("emission_value"))
-    source_sheet = clean_text(raw_row.get("source_sheet")) or "unknown"
+    source_sheet = clean_text(raw_row.get("source_sheet")) or source_sheet_fallback or "unknown"
     emission_unit = clean_text(raw_row.get("emission_unit"))
 
     if not pollutant or reporting_year is None:
         return None, "missing_pollutant_or_year"
-    if territory_name is None:
-        return None, "missing_territory"
     if source_name is None:
         return None, "missing_source"
     if activity_name is None:
@@ -439,12 +413,11 @@ def parse_normalized_csv_row(
     if emission_value is None:
         return None, "missing_or_invalid_emission"
 
-    extracted_at = clean_text(raw_row.get("extracted_at")) or ""
+    extracted_at = clean_text(raw_row.get("extracted_at")) or extracted_at_fallback or ""
     row = NormalizedPVRow(
         extracted_at=extracted_at,
         source_sheet=source_sheet,
         dataset_prefix=dataset_prefix,
-        territory_name=territory_name,
         pollutant=pollutant,
         reporting_year=reporting_year,
         emission_unit=emission_unit,
@@ -464,9 +437,32 @@ def gather_csv_paths(path: Path) -> List[Path]:
     raise FileNotFoundError(path)
 
 
-def extract_pv_xlsx(xlsx_path: Path, output_dir: Path, dataset_prefix: str) -> ExtractRunSummary:
+def dedupe_csv_paths_by_name(csv_paths: Sequence[Path]) -> Tuple[List[Path], Dict[str, List[Path]]]:
+    grouped: Dict[str, List[Path]] = defaultdict(list)
+    for csv_path in csv_paths:
+        grouped[csv_path.name].append(csv_path)
+
+    duplicates = {name: paths for name, paths in grouped.items() if len(paths) > 1}
+    selected: List[Path] = []
+    for name, paths in grouped.items():
+        best = max(paths, key=lambda p: (p.stat().st_mtime, str(p)))
+        selected.append(best)
+    return sorted(selected), duplicates
+
+
+def extract_pv_xlsx(
+    xlsx_path: Path,
+    output_dir: Path,
+    dataset_prefix: str,
+    force_reporting_year: Optional[int] = None,
+) -> ExtractRunSummary:
     if not xlsx_path.exists():
         raise FileNotFoundError(xlsx_path)
+    if force_reporting_year is not None:
+        raise ValueError(
+            "--force-reporting-year is not supported for visible-sheet extraction. "
+            "Use load-pv --force-reporting-year on normalized CSVs instead."
+        )
 
     normalized_prefix = require_pv_dataset_prefix(dataset_prefix)
 
@@ -487,18 +483,23 @@ def extract_pv_xlsx(xlsx_path: Path, output_dir: Path, dataset_prefix: str) -> E
     summaries: List[ExtractSheetSummary] = []
 
     try:
-        for sheet_name, subtype in TARGET_PV_SHEETS.items():
+        for sheet_name, sheet_spec in TARGET_PV_SHEETS.items():
             worksheet = workbook[sheet_name]
-            rows = worksheet.iter_rows(values_only=True)
-            header_row = next(rows, None)
+            header_row = next(
+                worksheet.iter_rows(
+                    min_row=VISIBLE_PV_HEADER_ROW,
+                    max_row=VISIBLE_PV_HEADER_ROW,
+                    values_only=True,
+                ),
+                None,
+            )
             if header_row is None:
-                raise ValueError(f"{sheet_name} has no header row")
+                raise ValueError(f"{sheet_name} has no header row at row {VISIBLE_PV_HEADER_ROW}")
 
-            validate_sheet_headers(sheet_name, header_row)
-            header_names = [str(value).strip() if value is not None else "" for value in header_row]
-            header_index = {name: idx for idx, name in enumerate(header_names) if name}
+            header_index, year_columns = validate_visible_sheet_headers(sheet_name, sheet_spec, header_row)
+            extracted_at = extract_visible_sheet_timestamp(worksheet, fallback_timestamp)
 
-            csv_name = f"{normalized_prefix}_{subtype}_{sheet_name.lower()}.csv"
+            csv_name = f"{normalized_prefix}_{sheet_spec.subtype}_{sheet_spec.csv_suffix}.csv"
             csv_path = output_dir / csv_name
             sheet_summary = ExtractSheetSummary(sheet_name=sheet_name, csv_path=csv_path)
 
@@ -506,24 +507,69 @@ def extract_pv_xlsx(xlsx_path: Path, output_dir: Path, dataset_prefix: str) -> E
                 writer = csv.DictWriter(handle, fieldnames=NORMALIZED_COLUMNS)
                 writer.writeheader()
 
-                for values in rows:
-                    raw_row = {
-                        column: values[index] if index < len(values) else None
-                        for column, index in header_index.items()
-                    }
-                    normalized_row, reason = normalize_db_link_row(
-                        source_sheet=sheet_name,
-                        dataset_prefix=normalized_prefix,
-                        raw_row=raw_row,
-                        fallback_extracted_at=fallback_timestamp,
+                for values in worksheet.iter_rows(min_row=VISIBLE_PV_HEADER_ROW + 1, values_only=True):
+                    pollutant = clean_text(
+                        values[header_index[sheet_spec.pollutant_header]]
+                        if header_index[sheet_spec.pollutant_header] < len(values)
+                        else None
                     )
-                    if normalized_row is None:
+                    nfr_code = clean_text(values[header_index["NFRCode"]] if header_index["NFRCode"] < len(values) else None)
+                    source_name = clean_text(
+                        values[header_index["SourceName"]]
+                        if header_index["SourceName"] < len(values)
+                        else None
+                    )
+                    activity_name = clean_text(
+                        values[header_index["ActivityName"]]
+                        if header_index["ActivityName"] < len(values)
+                        else None
+                    )
+                    emission_unit = clean_text(
+                        values[header_index["Emission Unit"]]
+                        if header_index["Emission Unit"] < len(values)
+                        else None
+                    )
+
+                    if is_grand_total_row(pollutant, nfr_code, source_name, activity_name):
                         sheet_summary.rows_skipped += 1
-                        if reason:
-                            sheet_summary.skipped_reasons[reason] += 1
+                        sheet_summary.skipped_reasons["summary_row"] += 1
                         continue
-                    writer.writerow(normalized_row_to_csv(normalized_row))
-                    sheet_summary.rows_written += 1
+
+                    if not pollutant or nfr_code is None or source_name is None or activity_name is None:
+                        sheet_summary.rows_skipped += 1
+                        sheet_summary.skipped_reasons["missing_dimension_values"] += 1
+                        continue
+
+                    row_wrote_any = False
+                    for year_index, year in year_columns:
+                        reporting_year = year
+                        raw_emission = values[year_index] if year_index < len(values) else None
+                        emission_value = parse_float(raw_emission)
+                        if emission_value is None:
+                            if clean_text(raw_emission) is not None:
+                                sheet_summary.skipped_reasons["invalid_emission_cell"] += 1
+                            continue
+
+                        normalized_row = NormalizedPVRow(
+                            extracted_at=extracted_at,
+                            source_sheet=sheet_name,
+                            dataset_prefix=normalized_prefix,
+                            pollutant=pollutant,
+                            reporting_year=reporting_year,
+                            emission_unit=emission_unit,
+                            source_name=source_name,
+                            activity_name=activity_name,
+                            emission_value=emission_value,
+                            nfr_code=nfr_code,
+                        )
+                        writer.writerow(normalized_row_to_csv(normalized_row))
+                        sheet_summary.rows_written += 1
+                        row_wrote_any = True
+
+                    if not row_wrote_any:
+                        sheet_summary.rows_skipped += 1
+                        sheet_summary.skipped_reasons["missing_or_invalid_emission"] += 1
+                        continue
 
             summaries.append(sheet_summary)
     finally:
@@ -839,8 +885,23 @@ class NAEIPVLoader:
         nfr_group_id: int,
         source_id: int,
         activity_id: int,
-        territory_name: str,
     ) -> int:
+        cur.execute(
+            """
+            SELECT min(pv_series_id)
+            FROM naei2024pv_series
+            WHERE dataset_file_id = %s
+              AND pollutant_id = %s
+              AND nfr_group_id = %s
+              AND source_id = %s
+              AND activity_id = %s
+            """,
+            (dataset_file_id, pollutant_id, nfr_group_id, source_id, activity_id),
+        )
+        existing = cur.fetchone()[0]
+        if existing is not None:
+            return int(existing)
+
         cur.execute(
             """
             INSERT INTO naei2024pv_series (
@@ -848,26 +909,24 @@ class NAEIPVLoader:
                 pollutant_id,
                 nfr_group_id,
                 source_id,
-                activity_id,
-                territory_name
+                activity_id
             )
-            VALUES (%s, %s, %s, %s, %s, %s)
-            ON CONFLICT (
-                dataset_file_id,
-                pollutant_id,
-                nfr_group_id,
-                source_id,
-                activity_id,
-                territory_name
-            )
-            DO UPDATE SET dataset_file_id = EXCLUDED.dataset_file_id
+            VALUES (%s, %s, %s, %s, %s)
             RETURNING pv_series_id
             """,
-            (dataset_file_id, pollutant_id, nfr_group_id, source_id, activity_id, territory_name),
+            (dataset_file_id, pollutant_id, nfr_group_id, source_id, activity_id),
         )
         return int(cur.fetchone()[0])
 
     def _flush_values(self, cur: Any, rows: List[Tuple[int, int, str, float]]) -> None:
+        aggregated: Dict[Tuple[int, int, str], float] = defaultdict(float)
+        for pv_series_id, reporting_year, metric_label, metric_value in rows:
+            aggregated[(pv_series_id, reporting_year, metric_label)] += metric_value
+
+        payload: List[Tuple[int, int, str, float]] = [
+            (pv_series_id, reporting_year, metric_label, metric_value)
+            for (pv_series_id, reporting_year, metric_label), metric_value in aggregated.items()
+        ]
         execute_values(
             cur,
             """
@@ -876,7 +935,7 @@ class NAEIPVLoader:
             ON CONFLICT (pv_series_id, reporting_year, metric_label)
             DO UPDATE SET metric_value = EXCLUDED.metric_value
             """,
-            rows,
+            payload,
             page_size=5000,
         )
 
@@ -886,6 +945,7 @@ class NAEIPVLoader:
         *,
         dataset_prefix_override: Optional[str] = None,
         source_url: Optional[str] = None,
+        force_reporting_year_override: Optional[int] = None,
     ) -> LoadFileSummary:
         extracted_at = datetime.fromtimestamp(csv_path.stat().st_mtime, tz=timezone.utc)
         rows_read = 0
@@ -902,12 +962,26 @@ class NAEIPVLoader:
                 raise ValueError(f"{csv_path.name} is missing required columns: {', '.join(missing_cols)}")
 
             dataset_file_id: Optional[int] = None
-            active_prefix: Optional[str] = require_pv_dataset_prefix(dataset_prefix_override) if dataset_prefix_override else None
+            inferred_prefix = infer_dataset_prefix_from_csv_name(csv_path.name)
+            active_prefix: Optional[str] = (
+                require_pv_dataset_prefix(dataset_prefix_override)
+                if dataset_prefix_override
+                else inferred_prefix
+            )
+            source_sheet_fallback = infer_source_sheet_from_csv_name(csv_path.name) or csv_path.stem
+            extracted_at_fallback = extracted_at.isoformat()
             batch_rows: List[Tuple[int, int, str, float]] = []
 
             for raw_row in reader:
                 rows_read += 1
-                normalized_row, reason = parse_normalized_csv_row(raw_row, dataset_prefix_override)
+                normalized_row, reason = parse_normalized_csv_row(
+                    raw_row,
+                    dataset_prefix_override,
+                    dataset_prefix_fallback=active_prefix,
+                    source_sheet_fallback=source_sheet_fallback,
+                    extracted_at_fallback=extracted_at_fallback,
+                    force_reporting_year_override=force_reporting_year_override,
+                )
                 if normalized_row is None:
                     rows_skipped += 1
                     if reason:
@@ -939,7 +1013,6 @@ class NAEIPVLoader:
                     nfr_group_id=nfr_id,
                     source_id=source_id,
                     activity_id=activity_id,
-                    territory_name=normalized_row.territory_name,
                 )
 
                 batch_rows.append((pv_series_id, normalized_row.reporting_year, "value", normalized_row.emission_value))
@@ -957,9 +1030,16 @@ class NAEIPVLoader:
 
             self.conn.commit()
 
+        final_prefix = active_prefix
+        if final_prefix is None:
+            raise ValueError(
+                f"Could not determine dataset_prefix for {csv_path.name}. "
+                "Pass --dataset-prefix or use file names prefixed like NAEI2024pv_..."
+            )
+
         return LoadFileSummary(
             csv_path=csv_path,
-            dataset_prefix=active_prefix or require_pv_dataset_prefix(dataset_prefix_override or "NAEI2024pv"),
+            dataset_prefix=final_prefix,
             dataset_file_id=dataset_file_id,
             rows_read=rows_read,
             rows_loaded=rows_loaded,
@@ -974,15 +1054,27 @@ def run_load_pv(
     dsn: str,
     source_url: Optional[str],
     dataset_prefix_override: Optional[str],
+    force_reporting_year_override: Optional[int] = None,
 ) -> LoadRunSummary:
     csv_paths = gather_csv_paths(path)
     if not csv_paths:
         raise RuntimeError(f"No CSV files found under {path}")
+    csv_paths, duplicates = dedupe_csv_paths_by_name(csv_paths)
+    if duplicates:
+        print(
+            "Warning: duplicate CSV filenames detected; using newest file per name and ignoring older duplicates.",
+            file=sys.stderr,
+        )
+        for name in sorted(duplicates):
+            ignored = sorted(str(path) for path in duplicates[name][:-1])
+            for path_str in ignored:
+                print(f"  ignored duplicate: {path_str}", file=sys.stderr)
     return run_load_pv_paths(
         csv_paths=csv_paths,
         dsn=dsn,
         source_url=source_url,
         dataset_prefix_override=dataset_prefix_override,
+        force_reporting_year_override=force_reporting_year_override,
     )
 
 
@@ -992,20 +1084,32 @@ def run_load_pv_paths(
     dsn: str,
     source_url: Optional[str],
     dataset_prefix_override: Optional[str],
+    force_reporting_year_override: Optional[int] = None,
 ) -> LoadRunSummary:
     require_psycopg()
+    deduped_paths, duplicates = dedupe_csv_paths_by_name(list(csv_paths))
+    if duplicates:
+        print(
+            "Warning: duplicate CSV filenames detected; using newest file per name and ignoring older duplicates.",
+            file=sys.stderr,
+        )
+        for name in sorted(duplicates):
+            ignored = sorted(str(path) for path in duplicates[name][:-1])
+            for path_str in ignored:
+                print(f"  ignored duplicate: {path_str}", file=sys.stderr)
     with psycopg.connect(dsn) as conn:
         loader = NAEIPVLoader(conn)
         files: List[LoadFileSummary] = []
         before_stats = dict(loader.dim_cache.stats)
         before_conflicts = set(loader.dim_cache.unit_conflicts)
 
-        for csv_path in csv_paths:
+        for csv_path in deduped_paths:
             files.append(
                 loader.load_pv_csv(
                     csv_path,
                     dataset_prefix_override=dataset_prefix_override,
                     source_url=source_url,
+                    force_reporting_year_override=force_reporting_year_override,
                 )
             )
 
@@ -1015,7 +1119,7 @@ def run_load_pv_paths(
             lookup_delta[key] = after_value - before_stats.get(key, 0)
 
     return LoadRunSummary(
-        csv_paths=csv_paths,
+        csv_paths=deduped_paths,
         files=files,
         unit_conflicts=unit_conflicts,
         lookup_delta=dict(sorted(lookup_delta.items())),
@@ -1088,6 +1192,7 @@ def command_load(args: argparse.Namespace) -> int:
         dsn=dsn,
         source_url=args.source_url,
         dataset_prefix_override=args.dataset_prefix,
+        force_reporting_year_override=args.force_reporting_year,
     )
     print_load_summary(summary)
     return 0
@@ -1115,7 +1220,7 @@ def command_run(args: argparse.Namespace) -> int:
 def add_extract_parser(subparsers: SubparserAction) -> None:
     parser = subparsers.add_parser(
         "extract-pv-xlsx",
-        help="Extract dbLink sheets from PivotTableViewer workbook into normalized CSVs",
+        help="Extract visible pivot sheets from PivotTableViewer workbook into normalized CSVs",
     )
     parser.add_argument("--xlsx", required=True, type=Path, help="Path to PivotTableViewer workbook")
     parser.add_argument(
@@ -1138,6 +1243,11 @@ def add_load_parser(subparsers: SubparserAction) -> None:
     parser.add_argument("--dsn", help="Database DSN (optional if SUPABASE_DB_URL/DATABASE_URL set)")
     parser.add_argument("--source-url", help="Optional source URL to store in dataset_file")
     parser.add_argument("--dataset-prefix", help="Override dataset_prefix from CSV rows")
+    parser.add_argument(
+        "--force-reporting-year",
+        type=parse_year_arg,
+        help="Optional override for reporting_year while loading CSV rows",
+    )
     parser.set_defaults(func=command_load)
 
 
@@ -1157,7 +1267,7 @@ def add_run_parser(subparsers: SubparserAction) -> None:
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description="NAEI 2024 PV extractor/loader")
+    parser = argparse.ArgumentParser(description="NAEI PV extractor/loader")
     subparsers = parser.add_subparsers(dest="command", required=True)
     add_extract_parser(subparsers)
     add_load_parser(subparsers)

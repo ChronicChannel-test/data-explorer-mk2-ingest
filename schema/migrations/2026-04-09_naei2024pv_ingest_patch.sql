@@ -114,6 +114,21 @@ BEGIN
 END
 $$;
 
+-- Drop legacy 2023-style unique constraint copied onto 2024 table (no territory).
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'naei2023pv_series_dataset_file_id_pollutant_id_nfr_group_id_key'
+      AND conrelid = 'public.naei2024pv_series'::regclass
+  ) THEN
+    ALTER TABLE public.naei2024pv_series
+      DROP CONSTRAINT naei2023pv_series_dataset_file_id_pollutant_id_nfr_group_id_key;
+  END IF;
+END
+$$;
+
 DO $$
 BEGIN
   IF EXISTS (

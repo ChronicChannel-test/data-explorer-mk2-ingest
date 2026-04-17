@@ -40,7 +40,6 @@ CREATE TABLE public.naei2024pv_series (
   nfr_group_id bigint,
   source_id integer,
   activity_id integer,
-  territory_name text NOT NULL,
   dataset_file_id integer NOT NULL,
   CONSTRAINT naei2024pv_series_pkey PRIMARY KEY (pv_series_id),
   CONSTRAINT naei2024pv_series_pollutant_id_fkey FOREIGN KEY (pollutant_id) REFERENCES public.naei_global_t_pollutant(id),
@@ -48,7 +47,7 @@ CREATE TABLE public.naei2024pv_series (
   CONSTRAINT naei2024pv_series_source_id_fkey FOREIGN KEY (source_id) REFERENCES public.naei_global_t_sourcename(id),
   CONSTRAINT naei2024pv_series_activity_id_fkey FOREIGN KEY (activity_id) REFERENCES public.naei_global_t_activityname(id),
   CONSTRAINT naei2024pv_series_dataset_file_id_fkey FOREIGN KEY (dataset_file_id) REFERENCES public.dataset_file(dataset_file_id),
-  CONSTRAINT naei2024pv_series_identity_key UNIQUE (dataset_file_id, pollutant_id, nfr_group_id, source_id, activity_id, territory_name)
+  CONSTRAINT naei2024pv_series_identity_key UNIQUE (dataset_file_id, pollutant_id, nfr_group_id, source_id, activity_id)
 );
 
 CREATE TABLE public.naei2024pv_values (
