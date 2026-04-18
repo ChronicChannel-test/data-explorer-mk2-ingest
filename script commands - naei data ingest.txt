@@ -29,3 +29,9 @@ python scripts/load_naei_data_batched.py \
   
   
 This loads those CSVs into Postgres, upserting against the renamed dataset_file keys we just migrated.
+
+
+
+
+cd "CIC-test-data-explorer-mk2-ingest"
+python scripts/load_category_data.py

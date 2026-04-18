@@ -1,0 +1,366 @@
+id,nfr_code,description
+1,0,Not Included
+2,1A1a,Public electricity and heat production
+3,1A1b,Petroleum refining
+4,1A1c,Manufacture of solid fuels and other energy industries
+5,1A2a,Stationary combustion in manufacturing industries and construction: Iron and steel
+6,1A2b,Stationary combustion in manufacturing industries and construction: Non-ferrous metals
+7,1A2c,Stationary combustion in manufacturing industries and construction: Chemicals
+8,1A2d,"Stationary combustion in manufacturing industries and construction: Pulp, Paper and Print"
+9,1A2e,"Stationary combustion in manufacturing industries and construction: Food processing, beverages and tobacco"
+10,1A2f,Stationary combustion in manufacturing industries and construction: Non-metallic minerals
+11,1A2gvii,Mobile Combustion in manufacturing industries and construction: (please specify in the IIR)
+12,1A2gviii,Stationary combustion in manufacturing industries and construction: Other (please specify in the IIR)
+13,1A3ai(i),International aviation LTO (civil)
+14,1A3aii(i),Domestic aviation LTO (civil)
+15,1A3bi,Road transport: Passenger cars
+16,1A3bii,Road transport: Light duty vehicles
+17,1A3biii,Road transport: Heavy duty vehicles and buses
+18,1A3biv,Road transport: Mopeds & motorcycles
+19,1A3bv,Road transport: Gasoline evaporation
+20,1A3bvi,Road transport: Automobile tyre and brake wear
+21,1A3bvii,Road transport: Automobile road abrasion
+22,1A3c,Railways
+23,1A3di(ii),International inland waterways
+24,1A3dii,National navigation (shipping)
+25,1A3ei,Pipeline transport
+26,1A3eii,Other (please specify in the IIR)
+27,1A4ai,Commercial/institutional: Stationary
+28,1A4aii,Commercial/institutional: Mobile
+29,1A4bi,Residential: Stationary
+30,1A4bii,Residential: Household and gardening (mobile)
+31,1A4ci,Agriculture/Forestry/Fishing: Stationary
+32,1A4cii,Agriculture/Forestry/Fishing: Off-road vehicles and other machinery
+33,1A4ciii,Agriculture/Forestry/Fishing: National fishing
+34,1A5a,Other stationary (including military)
+35,1A5b,"Other, Mobile (including military, land based and recreational boats)"
+36,1B1a,Fugitive emission from solid fuels: Coal mining and handling
+37,1B1b,Fugitive emission from solid fuels: Solid fuel transformation
+38,1B1c,Other fugitive emissions from solid fuels
+39,1B2ai,"Fugitive emissions oil: Exploration, production, transport"
+40,1B2aiv,Fugitive emissions oil: Refining / storage
+41,1B2av,Distribution of oil products
+42,1B2b,"Fugitive emissions from natural gas (exploration, production, processing, transmission, storage, distribution and other)"
+43,1B2c,"Venting and flaring (oil, gas, combined oil and gas)"
+44,1B2d,Other fugitive emissions from energy production
+45,2A1,Cement production
+46,2A2,Lime production
+47,2A3,Glass production
+48,2A5a,Quarrying and mining of minerals other than coal
+49,2A5b,Construction and demolition
+50,2A5c,"Storage, handling and transport of mineral products"
+51,2A6,Other mineral products (please specify in the IIR)
+52,2B1,Ammonia production
+53,2B2,Nitric acid production
+54,2B3,Adipic acid production
+55,2B5,Carbide production
+56,2B6,Titanium dioxide production
+57,2B7,Soda ash production
+58,2B10a,Chemical industry: Other  (please specify in the IIR)
+59,2B10b,"Storage, handling and transport of chemical products (please specify in the IIR)"
+60,2C1,Iron and steel production
+61,2C2,Ferroalloys production
+62,2C3,Aluminium production
+63,2C4,Magnesium production
+64,2C5,Lead production
+65,2C6,Zinc production
+66,2C7a,Copper production
+67,2C7b,Nickel production
+68,2C7c,Other metal production (please specify in the IIR)
+69,2C7d,"Storage, handling and transport of metal products (please specify in the IIR)"
+70,2D3a,Domestic solvent use including fungicides
+71,2D3b,Road paving with asphalt
+72,2D3c,Asphalt roofing
+73,2D3d,Coating applications
+74,2D3e,Degreasing
+75,2D3f,Dry cleaning
+76,2D3g,Chemical products
+77,2D3h,Printing
+78,2D3i,Other solvent use (please specify in the IIR)
+79,2G,Other product use (please specify in the IIR)
+80,2H1,Pulp and paper industry
+81,2H2,Food and beverages industry
+82,2H3,Other industrial processes (please specify in the IIR)
+83,2I,Wood processing
+84,2J,Production of POPs
+85,2K,Consumption of POPs and heavy metals (e.g. electrical and scientific equipment)
+86,2L,"Other production, consumption, storage, transportation or handling of bulk products (please specify in the IIR)"
+87,3B1a,Manure management - Dairy cattle
+88,3B1b,Manure management - Non-dairy cattle
+89,3B2,Manure management - Sheep
+90,3B3,Manure management - Swine
+91,3B4a,Manure management - Buffalo
+92,3B4d,Manure management - Goats
+93,3B4e,Manure management - Horses
+94,3B4f,Manure management - Mules and asses
+95,3B4gi,Manure management -  Laying hens
+96,3B4gii,Manure management -  Broilers
+97,3B4giii,Manure management -  Turkeys
+98,3B4giv,Manure management -  Other poultry
+99,3B4h,Manure management - Other animals (please specify in IIR)
+100,3Da1,Inorganic N-fertilizers (includes also urea application)
+101,3Da2a,Animal manure applied to soils
+102,3Da2b,Sewage sludge  applied to soils
+103,3Da2c,Other organic fertilisers applied to soils (including compost)
+104,3Da3,Urine and dung deposited by grazing animals
+105,3Da4,Crop residues applied to soils
+106,3Db,Indirect emissions from managed soils
+107,3Dc,"Farm-level agricultural operations including storage, handling and transport of agricultural products"
+108,3Dd,"Off-farm storage, handling and transport of bulk agricultural products"
+109,3De,Cultivated crops
+110,3Df,Use of pesticides
+111,3F,Field burning of agricultural residues
+112,3I,Agriculture other (please specify in the IIR)
+113,5A,Biological treatment of waste - Solid waste disposal on land
+114,5B1,Biological treatment of waste - Composting
+115,5B2,Biological treatment of waste - Anaerobic digestion at biogas facilities
+116,5C1a,Municipal waste incineration
+117,5C1bi,Industrial waste incineration
+118,5C1bii,Hazardous waste incineration
+119,5C1biii,Clinical waste incineration
+120,5C1biv,Sewage sludge incineration
+121,5C1bv,Cremation
+122,5C1bvi,Other waste incineration (please specify in the IIR)
+123,5C2,Open burning of waste
+124,5D1,Domestic wastewater handling
+125,5D2,Industrial wastewater handling
+126,5D3,Other wastewater handling
+127,5E,Other waste (please specify in IIR)
+128,6A,Other (included in national total for entire territory) (please specify in IIR)
+129,z_1A3ai(ii),International aviation cruise (civil)
+130,z_1A3aii(ii),Domestic aviation cruise (civil)
+131,z_1A3di(i),International maritime navigation
+132,z_1A5c,Multilateral operations
+133,z_1A3,Transport (fuel used)
+134,z_6B,Other not included in national total of the entire territory (please specify in the IIR)
+135,z_11A,Volcanoes
+136,z_11B,Forest fires
+137,z_11C,Other natural emissions (please specify in the IIR)
+138,1A1ai,Unknown
+139,1A1aiii,Unknown
+140,1A1ci,Unknown
+141,1A1cii,Unknown
+142,1A1ciii,Unknown
+143,1A2giii,Unknown
+144,1A2gv,Unknown
+145,1A3a,Unknown
+146,1A3d,Unknown
+147,1B1a1i,Unknown
+148,1B1a1ii,Unknown
+149,1B1a1iii,Unknown
+150,1B1a2i,Unknown
+151,1B2a1,Unknown
+152,1B2a2,Unknown
+153,1B2a3,Unknown
+154,1B2a4,Unknown
+155,1B2a6,Unknown
+156,1B2b1,Unknown
+157,1B2b2,Unknown
+158,1B2b3,Unknown
+159,1B2b4,Unknown
+160,1B2b5,Unknown
+161,1B2c1i,Unknown
+162,1B2c1ii,Unknown
+163,1B2c2i,Unknown
+164,1B2c2ii,Unknown
+165,2A4a,Unknown
+166,2A4b,Unknown
+167,2A4d,Unknown
+168,2B10,Unknown
+169,2B8a,Unknown
+170,2B8b,Unknown
+171,2B8c,Unknown
+172,2B8d,Unknown
+173,2B8e,Unknown
+174,2B8f,Unknown
+175,2B8g,Unknown
+176,2B9a1,Unknown
+177,2B9b3,Unknown
+178,2C1a,Unknown
+179,2C1b,Unknown
+180,2C1d,Unknown
+181,2C3a,Unknown
+182,2C3b,Unknown
+183,2D1,Unknown
+184,2D2,Unknown
+185,2D3,Unknown
+186,2E+01,Unknown
+187,2F1a,Unknown
+188,2F1b,Unknown
+189,2F1c,Unknown
+190,2F1d,Unknown
+191,2F1e,Unknown
+192,2F1f,Unknown
+193,2F2a,Unknown
+194,2F2b,Unknown
+195,2F3,Unknown
+196,2F4a,Unknown
+197,2F4b,Unknown
+198,2F5,Unknown
+199,2F6b,Unknown
+200,2G1,Unknown
+201,2G2a,Unknown
+202,2G2b,Unknown
+203,2G2e,Unknown
+204,2G3a,Unknown
+205,2G3b,Unknown
+206,2G4,Unknown
+207,3A1a,Unknown
+208,3A1b,Unknown
+209,3A2,Unknown
+210,3A3,Unknown
+211,3A4,Unknown
+212,3B11a,Unknown
+213,3B11b,Unknown
+214,3B12,Unknown
+215,3B13,Unknown
+216,3B14,Unknown
+217,3B21a,Unknown
+218,3B21b,Unknown
+219,3B22,Unknown
+220,3B23,Unknown
+221,3B24,Unknown
+222,3B25,Unknown
+223,3D11,Unknown
+224,3D12a,Unknown
+225,3D12b,Unknown
+226,3D12c,Unknown
+227,3D13,Unknown
+228,3D14,Unknown
+229,3D15,Unknown
+230,3D16,Unknown
+231,3D21,Unknown
+232,3D22,Unknown
+233,3F11,Unknown
+234,3F12,Unknown
+235,3F14,Unknown
+236,3F5,Unknown
+237,3G1,Unknown
+238,3G2,Unknown
+239,3H,Unknown
+240,3J,Unknown
+241,4,Unknown
+242,4A,Unknown
+243,4A1,Unknown
+244,4A2,Unknown
+245,4B1,Unknown
+246,4B2,Unknown
+247,4C,Unknown
+248,4C1,Unknown
+249,4C2,Unknown
+250,4D,Unknown
+251,4D1,Unknown
+252,4D2,Unknown
+253,4E,Unknown
+254,4E+01,Unknown
+255,4E+02,Unknown
+256,4G,Unknown
+257,5A1a,Unknown
+258,5B1a,Unknown
+259,5B2a,Unknown
+260,5C1.1b,Unknown
+261,5C1.2a,Unknown
+262,5C1.2b,Unknown
+263,5C2.1b,Unknown
+264,5C2.2b,Unknown
+265,Aviation_Bunkers,Unknown
+266,Marine_Bunkers,Unknown
+267,non-IPCC,Unknown
+268,1B1ai1,Unknown
+269,1B1ai2,Unknown
+270,1B1ai3,Unknown
+271,1B1aii1,Unknown
+272,1B1bi,Unknown
+273,1B1bii,Unknown
+274,1B2aii,Unknown
+275,1B2aiii,Unknown
+276,1B2avi1,Unknown
+277,1B2bi,Unknown
+278,1B2bii,Unknown
+279,1B2biii,Unknown
+280,1B2biv,Unknown
+281,1B2bv,Unknown
+282,1B2bvi1,Unknown
+283,1B2ci1,Unknown
+284,1B2ci2,Unknown
+285,1B2cii1,Unknown
+286,1B2cii2,Unknown
+287,1D1a,Unknown
+288,1D1b,Unknown
+289,2B8gii,Unknown
+290,2B9ai,Unknown
+291,2B9biv,Unknown
+292,2G2eii,Unknown
+293,2G3bi,Unknown
+294,2G3bii,Unknown
+295,3A4c,Unknown
+296,3A4d,Unknown
+297,3A4e,Unknown
+298,3B4c,Unknown
+299,3B4g,Unknown
+300,3B5,Unknown
+301,3D1a,Unknown
+302,3D1bi,Unknown
+303,3D1bii,Unknown
+304,3D1biii,Unknown
+305,3D1c,Unknown
+306,3D1d,Unknown
+307,3D1e,Unknown
+308,3D1f,Unknown
+309,3D2a,Unknown
+310,3D2b,Unknown
+311,3F1a,Unknown
+312,3F1b,Unknown
+313,3F1d,Unknown
+314,4A(II),Unknown
+315,4A1(IV)b,Unknown
+316,4A2(I),Unknown
+317,4A2b,Unknown
+318,4A2b(III),Unknown
+319,4A2c,Unknown
+320,4A2c(III),Unknown
+321,4A2e,Unknown
+322,4A2e(III),Unknown
+323,4B,Unknown
+324,4B(II),Unknown
+325,4B1(IV)b,Unknown
+326,4B2(IV)a,Unknown
+327,4B2a,Unknown
+328,4B2a(III),Unknown
+329,4B2c,Unknown
+330,4B2e,Unknown
+331,4C(II),Unknown
+332,4C1(III),Unknown
+333,4C1(IV)b,Unknown
+334,4C2(IV)a,Unknown
+335,4C2a,Unknown
+336,4C2a(III),Unknown
+337,4C2b,Unknown
+338,4C2e,Unknown
+339,4D(II),Unknown
+340,4D1a,Unknown
+341,4D1c,Unknown
+342,4D2(IV)a,Unknown
+343,4D2a,Unknown
+344,4D2biii,Unknown
+345,4D2ci,Unknown
+346,4D2cii,Unknown
+347,4E(II),Unknown
+348,4E1(III),Unknown
+349,4E2(IV)a,Unknown
+350,4E2a,Unknown
+351,4E2a(III),Unknown
+352,4E2b,Unknown
+353,4E2b(III),Unknown
+354,4E2c,Unknown
+355,4E2c(III),Unknown
+356,4E2d,Unknown
+357,4E2d(III),Unknown
+358,5C1ai,Unknown
+359,5C1aii4,Unknown
+360,5C1bii3,Unknown
+361,5C1bii5,Unknown
+362,5C2ai,Unknown
+363,5C2aii,Unknown
+364,5C2bi,Unknown
+365,5C2bii,Unknown
